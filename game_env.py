@@ -106,11 +106,11 @@ class EmulatorEnv:
 
         # 应用对称对数变换，防止训练中出现超大值，破坏稳定
         reward = np.sign(reward) * np.log1p(np.abs(reward))
-        
+
         # Check if the end of the dataset is reached
         self.current_day += 1
         done = self.current_day > self.end_day - 2# or self.asset < 10
-        if self.asset < 10:
+        if self.asset < -self.initial_money:  # 允许负债，但数量上不能超过原始资金
             done = True
             print('wasted')
         # Get the next state
