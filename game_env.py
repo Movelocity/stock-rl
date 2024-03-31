@@ -29,8 +29,8 @@ def readDataset(name='trainset.txt') -> tp.Tuple[pd.DataFrame]:
 
     # Reindex and fill missing dates
     all_dates = pd.date_range(start=prices_df.index.min(), end=prices_df.index.max(), freq='D')
-    prices_df = prices_df.reindex(all_dates).fillna(method='ffill')
-    volumes_df = volumes_df.reindex(all_dates).fillna(method='ffill')
+    prices_df = prices_df.reindex(all_dates).ffill()
+    volumes_df = volumes_df.reindex(all_dates).ffill()
 
     # Fill any remaining missing values with 0
     prices_df.fillna(0, inplace=True)
