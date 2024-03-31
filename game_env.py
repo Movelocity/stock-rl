@@ -103,7 +103,10 @@ class EmulatorEnv:
         self.asset = current_market_value + self.available_cash
         
         reward = np.sum(self.tomorrow_prices() * self.volumes) - current_market_value
-        reward = np.log(reward - 1)  # 对数曲线，防止训练中出现超大值，破坏稳定
+
+        # 应用对称对数变换，防止训练中出现超大值，破坏稳定
+        reward = np.sign(reward) * np.log1p(np.abs(reward))
+        
         # Check if the end of the dataset is reached
         self.current_day += 1
         done = self.current_day > self.end_day - 2# or self.asset < 10
