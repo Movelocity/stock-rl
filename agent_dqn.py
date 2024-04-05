@@ -18,16 +18,11 @@ class ReplayBuffer:
         self.batch_size = batch_size
         self.experience = namedtuple( # 临时结构体
             "Experience", 
-            # field_names=["state", "feature", "action", "reward", "next_state", "next_feature", "done"]
             field_names=["state", "action", "reward", "next_state", "done"]
         )
         self.seed = random.seed(seed)
         self.device = device
-    
-    # def add(self, state, feature, action, reward, next_state, next_feature, done):
-    #     """增加一条记录"""
-    #     e = self.experience(state, feature, action, reward, next_state, next_feature, done)
-    #     self.memory.append(e)
+
     def add(self, state, action, reward, next_state, done):
         """增加一条记录"""
         e = self.experience(state, action, reward, next_state, done)
@@ -43,11 +38,44 @@ class ReplayBuffer:
         actions = torch.LongTensor(np.vstack([e.action for e in experiences if e is not None])).to(device)
         rewards = torch.FloatTensor(np.vstack([e.reward for e in experiences if e is not None])).to(device)
         next_states = torch.FloatTensor(np.stack([e.next_state for e in experiences if e is not None], axis=0)).to(device)
-        # next_features = torch.FloatTensor(np.vstack([e.next_feature for e in experiences if e is not None])).to(device)
         dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).to(device)
   
-        # return (states, actions, rewards, next_states, next_features, dones)
         return (states, actions, rewards, next_states, dones)
+
+    def __len__(self):
+        """记忆库长度"""
+        return len(self.memory)
+
+class ReplayBufferE:
+    """Fixed-size buffer to store experience tuples."""
+    def __init__(self, buffer_size, batch_size, device, seed=0):
+        self.memory = deque(maxlen=buffer_size)  
+        self.batch_size = batch_size
+        self.experience = namedtuple( # 临时结构体
+            "Experience", 
+            field_names=["state", "feature", "action", "reward", "next_state", "next_feature", "done"]
+        )
+        self.seed = random.seed(seed)
+        self.device = device
+    
+    def add(self, state, feature, action, reward, next_state, next_feature, done):
+        """增加一条记录"""
+        e = self.experience(state, feature, action, reward, next_state, next_feature, done)
+        self.memory.append(e)
+    
+    def sample(self, device=None):
+        """从记忆库中随机采样一个批次的记录"""
+        if device is None:
+            device = self.device
+        experiences = random.sample(self.memory, k=self.batch_size)
+        states = torch.FloatTensor(np.stack([e.state for e in experiences if e is not None], axis=0)).to(device)
+        features = torch.FloatTensor(np.vstack([e.features for e in experiences if e is not None])).to(device)
+        actions = torch.LongTensor(np.vstack([e.action for e in experiences if e is not None])).to(device)
+        rewards = torch.FloatTensor(np.vstack([e.reward for e in experiences if e is not None])).to(device)
+        next_states = torch.FloatTensor(np.stack([e.next_state for e in experiences if e is not None], axis=0)).to(device)
+        next_features = torch.FloatTensor(np.vstack([e.next_feature for e in experiences if e is not None])).to(device)
+        dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).to(device)
+        return (states, features, actions, rewards, next_states, next_features, dones)
 
     def __len__(self):
         """记忆库长度"""
@@ -116,24 +144,21 @@ class Agent():
             gamma (float): discount factor
         """
         self.qnetwork_local.train()
-        # states, features, actions, rewards, next_states, next_features, dones = experiences
         states, actions, rewards, next_states, dones = experiences
         # 根据下一状态，获取预测出来的最大 Q 值，当成未来期望
-        # Q_targets_next = self.qnetwork_target(next_states, next_features).detach().max(1)[0].unsqueeze(1)
-        # Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)  # 看哪个股票有最大的QValue
+
+        # 看哪个股票有最大的QValue
         Q_targets_next, _ = torch.max(self.qnetwork_target(next_states).detach(), dim=1, keepdim=True)
         
         # 根据公式计算当前状态的 Q 值
         Q_expected = rewards + (gamma * Q_targets_next * (1 - dones))
 
         # 预测当前状态的 Q 值
-        # Q_predicted = self.qnetwork_local(states, features).gather(1, actions)
-        a:torch.Tensor = self.qnetwork_local(states)
-        
-        # _, max_indices = actions.max(dim=1, keepdim=True)
-        # one_hot_actions = torch.zeros_like(actions).scatter_(1, max_indices, 1)
+        a: torch.Tensor = self.qnetwork_local(states)
+
         _maxs, indices = torch.max(actions, dim=1, keepdim=True)
         Q_predicted = a.gather(1, indices)
+
         # 计算差值，预测的要和期望的一致
         loss = F.mse_loss(Q_predicted, Q_expected)
         # 优化权重，减小差值
@@ -178,17 +203,13 @@ class AgentE():
         self.qnetwork_target = QNetwork(stock_cnt, self.seed).to(self.device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
-        self.memory = ReplayBuffer(BUFFER_SIZE, self.batch_size, self.device, self.seed)
+        self.memory = ReplayBufferE(BUFFER_SIZE, self.batch_size, self.device, self.seed)
         # 每调用 UPDATE_EVERY 次 step 方法，学习一次
         self.t_step = 0
     
-    # def step(self, state, feature, action, reward, next_state, next_feature, done):
-    #     # 保存一组记录
-    #     self.memory.add(state, feature, action, reward, next_state, next_feature, done)
-    def step(self, state, action, reward, next_state, done):
+    def step(self, state, feature, action, reward, next_state, next_feature, done):
         # 保存一组记录
-        self.memory.add(state, action, reward, next_state, done)
-        # Learn every UPDATE_EVERY time steps.
+        self.memory.add(state, feature, action, reward, next_state, next_feature, done)
         self.t_step = (self.t_step + 1) % self.steps_per_update
         if self.t_step == 0:
             # If enough samples are available in memory, get random subset and learn
@@ -219,19 +240,19 @@ class AgentE():
             gamma (float): discount factor
         """
         self.qnetwork_local.train()
-        # states, features, actions, rewards, next_states, next_features, dones = experiences
-        states, actions, rewards, next_states, dones = experiences
+        states, features, actions, rewards, next_states, next_features, dones = experiences
+
         # 根据下一状态，获取预测出来的最大 Q 值，当成未来期望
         # Q_targets_next = self.qnetwork_target(next_states, next_features).detach().max(1)[0].unsqueeze(1)
         # Q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)  # 看哪个股票有最大的QValue
-        Q_targets_next, _ = torch.max(self.qnetwork_target(next_states).detach(), dim=1, keepdim=True)
+        Q_targets_next, _ = torch.max(self.qnetwork_target(next_states, next_features).detach(), dim=1, keepdim=True)
         
         # 根据公式计算当前状态的 Q 值
         Q_expected = rewards + (gamma * Q_targets_next * (1 - dones))
 
         # 预测当前状态的 Q 值
         # Q_predicted = self.qnetwork_local(states, features).gather(1, actions)
-        a:torch.Tensor = self.qnetwork_local(states)
+        a:torch.Tensor = self.qnetwork_local(states, features)
         
         # _, max_indices = actions.max(dim=1, keepdim=True)
         # one_hot_actions = torch.zeros_like(actions).scatter_(1, max_indices, 1)

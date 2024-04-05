@@ -1,15 +1,28 @@
 import pandas as pd
 from tqdm import tqdm
 import typing as tp
+import os
+import pickle
 
-def readDataset(name='trainset.txt') -> tp.Tuple[pd.DataFrame]:
+def readDataset(name='trainset.txt', emb_dir=None):
     with open(name, 'r', encoding='utf-8') as f:
         fpaths = [fpath for fpath in f.read().split('\n') if fpath != '']
 
     # 初始化2个空的list，用于存储价格、成交量
     # Initialize lists to hold the data for each DataFrame
-    prices_data = []
-    volumes_data = []
+    if emb_dir:
+        full_embeds = {}
+        subfiles = os.listdir(emb_dir)
+        for file in tqdm(subfiles, desc='loading embeds'):
+            file_dir = os.path.join(emb_dir, file)
+            with open(file_dir, 'rb') as f:
+                emb_dict = pickle.load(f)
+            for k, emb in emb_dict.items():
+                simple_k = k[:10]
+                if not full_embeds.get(simple_k, None):
+                    full_embeds[simple_k] = emb  # 1d array, float32
+
+    prices_data, volumes_data, embeds_data = [], [], []
     for fpath in tqdm(fpaths):  # 循环处理文件路径列表
         # 读取CSV文件到DataFrame，并设置日期为索引
         df = pd.read_csv(fpath, index_col='date', parse_dates=['date'])
@@ -21,6 +34,9 @@ def readDataset(name='trainset.txt') -> tp.Tuple[pd.DataFrame]:
         # Append the series with the ticker as the name to the lists
         prices_data.append(df['price'].rename(ticker))
         volumes_data.append(df['volume'].rename(ticker))
+        for index, _ in df.iterrows():
+            date_index = str(index)[:10]
+            embeds_data.append(full_embeds[date_index])
 
     # 将所有DataFrame的索引统一，确保日期对齐，缺失的数据用前一个值填充
     # Concatenate all data into their respective DataFrames
@@ -35,7 +51,11 @@ def readDataset(name='trainset.txt') -> tp.Tuple[pd.DataFrame]:
     # Fill any remaining missing values with 0
     prices_df.fillna(0, inplace=True)
     volumes_df.fillna(0, inplace=True)
-    return prices_df, volumes_df
+
+    if emb_dir:
+        return prices_df, volumes_df, embeds_data
+    else:
+        return prices_df, volumes_df
 
 
 import numpy as np
@@ -43,7 +63,7 @@ from game_env import readDataset
  
 
 class EmulatorEnv:
-    def __init__(self, initial_money=500000, start_day=10, end_day=-1):
+    def __init__(self, initial_money=500000, start_day=10, end_day=-1, use_emb=False):
         prices_df, volumes_df = readDataset()
         self.prices_df = prices_df
         self.volumes_df = volumes_df
