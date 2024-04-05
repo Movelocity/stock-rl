@@ -41,7 +41,7 @@ class QNetwork(nn.Module):
 
 class QNetworkE(nn.Module):
     def __init__(self, base_dim=512, seed=0, emb_size=1024):
-        super(QNetwork, self).__init__()
+        super(QNetworkE, self).__init__()
         self.seed = torch.manual_seed(seed)
         # base_dim 表示跟踪多少只股票
 
