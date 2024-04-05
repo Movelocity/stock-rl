@@ -19,7 +19,9 @@ def readDataset(name='trainset.txt', embed_dir=None):
                 emb_dict = pickle.load(f)
             for k, emb in emb_dict.items():
                 simple_k = k[:10]
-                if not full_embeds.get(simple_k, None):
+                if full_embeds.get(simple_k, None) != None:
+                    continue  # 只需要当天的第一个新闻
+                else:
                     full_embeds[simple_k] = emb  # 1d array, float32
 
     prices_data, volumes_data, embeds_data = [], [], []
