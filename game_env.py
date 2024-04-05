@@ -98,9 +98,9 @@ class EmulatorEnv:
         self.available_cash = self.initial_money
         self.asset = self.available_cash
         if self.use_embed:
-            return self._get_state(), 0, False  # reward=0, done=Falsee
-        else:
             return self._get_state(), self._get_embed(), 0, False
+        else:
+            return self._get_state(), 0, False  # reward=0, done=Falsee
 
     def tomorrow_prices(self):
         tomorrow = self.current_day + 1 if self.current_day < self.end_day - 1 else self.current_day
