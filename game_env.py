@@ -26,7 +26,8 @@ def readDataset(name='trainset.txt', emb_dir=None):
     for fpath in tqdm(fpaths):  # 循环处理文件路径列表
         # 读取CSV文件到DataFrame，并设置日期为索引
         df = pd.read_csv(fpath, index_col='date', parse_dates=['date'])
-        
+        df = df[df.index > '2016-01-01']
+
         # 提取股票代码作为列名
         ticker = fpath.split('\\')[-1].split('.')[0]
         
@@ -63,17 +64,21 @@ from game_env import readDataset
  
 
 class EmulatorEnv:
-    def __init__(self, initial_money=500000, start_day=10, end_day=-1, use_emb=False):
-        prices_df, volumes_df = readDataset()
-        self.prices_df = prices_df
-        self.volumes_df = volumes_df
+    def __init__(self, initial_money=500000, start_day=10, end_day=-1, embed_dir=None):
+        if embed_dir:
+            self.prices_df, self.volumes_df, self.embeds_data = readDataset(embed_dir=embed_dir)
+            self.use_embed = True
+        else:
+            self.prices_df, self.volumes_df = readDataset(embed_dir=embed_dir)
+            self.use_embed = False
+
         self.bunch_size = 1000  # 暂时用不到
 
         self.initial_money = initial_money 
         self.start_day = start_day
 
         self.current_day = start_day            # 日期计数
-        max_day = len(prices_df)
+        max_day = len(self.prices_df)
         self.end_day = max_day - end_day if end_day < 0 else end_day
         self.end_day = min(max_day, self.end_day)
 
@@ -89,7 +94,10 @@ class EmulatorEnv:
         self.volumes = np.zeros(512)
         self.available_cash = self.initial_money
         self.asset = self.available_cash
-        return self._get_state(), 0, False  # reward=0, done=Falsee
+        if self.use_embed:
+            return self._get_state(), 0, False  # reward=0, done=Falsee
+        else:
+            return self._get_state(), self._get_embed(), 0, False
 
     def tomorrow_prices(self):
         tomorrow = self.current_day + 1 if self.current_day < self.end_day - 1 else self.current_day
@@ -135,8 +143,10 @@ class EmulatorEnv:
             print('wasted')
         # Get the next state
         next_state = self._get_state()
-
-        return next_state, reward, done  # TODO: 另外的done: 负债超过50w
+        if self.use_embed:
+            return next_state, self._get_embed(), reward, done
+        else:
+            return next_state, reward, done  # TODO: 另外的done: 负债超过50w
 
     def _calc_investment_ratio(self):
         current_stock_values = self.prices_df.iloc[self.current_day].values * self.volumes
@@ -145,7 +155,6 @@ class EmulatorEnv:
     def _get_state(self):
         # Retrieve the state, which is the past 3-day prices of all 512 stocks
         # Concatenate investment over total investment ratio to the state
-
         state_prices = self.prices_df.iloc[self.current_day-3:self.current_day].values / 100 # 降低数值大小
 
         state_prices = state_prices.flatten()
@@ -157,6 +166,8 @@ class EmulatorEnv:
         state = np.concatenate((state_prices, investment_ratio))
         return state
 
+    def _get_embed(self):
+        return self.embeds_data[self.current_day]
 
 # Initialize the environment
 if __name__ == '__main__':
