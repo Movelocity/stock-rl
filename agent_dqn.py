@@ -221,7 +221,7 @@ class AgentE():
         """ eps (float) 越高，随机动作的概率越高
         """
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        state = torch.FloatTensor(feature).unsqueeze(0).to(self.device)
+        feature = torch.FloatTensor(feature).unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
         with torch.no_grad():
             qvalues = self.qnetwork_local(state, feature)[0].cpu().numpy()

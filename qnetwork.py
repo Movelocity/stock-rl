@@ -77,7 +77,6 @@ class QNetworkE(nn.Module):
             nn.Linear(base_dim, base_dim)
         )
         
-
     def forward(self, hist_price, embed):
         p = self.read_price(hist_price)
         e = self.read_emb(embed)
