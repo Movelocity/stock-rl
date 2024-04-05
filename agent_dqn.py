@@ -69,7 +69,7 @@ class ReplayBufferE:
             device = self.device
         experiences = random.sample(self.memory, k=self.batch_size)
         states = torch.FloatTensor(np.stack([e.state for e in experiences if e is not None], axis=0)).to(device)
-        features = torch.FloatTensor(np.vstack([e.features for e in experiences if e is not None])).to(device)
+        features = torch.FloatTensor(np.vstack([e.feature for e in experiences if e is not None])).to(device)
         actions = torch.LongTensor(np.vstack([e.action for e in experiences if e is not None])).to(device)
         rewards = torch.FloatTensor(np.vstack([e.reward for e in experiences if e is not None])).to(device)
         next_states = torch.FloatTensor(np.stack([e.next_state for e in experiences if e is not None], axis=0)).to(device)
