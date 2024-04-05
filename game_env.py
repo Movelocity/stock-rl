@@ -4,17 +4,17 @@ import typing as tp
 import os
 import pickle
 
-def readDataset(name='trainset.txt', emb_dir=None):
+def readDataset(name='trainset.txt', embed_dir=None):
     with open(name, 'r', encoding='utf-8') as f:
         fpaths = [fpath for fpath in f.read().split('\n') if fpath != '']
 
     # 初始化2个空的list，用于存储价格、成交量
     # Initialize lists to hold the data for each DataFrame
-    if emb_dir:
+    if embed_dir:
         full_embeds = {}
-        subfiles = os.listdir(emb_dir)
+        subfiles = os.listdir(embed_dir)
         for file in tqdm(subfiles, desc='loading embeds'):
-            file_dir = os.path.join(emb_dir, file)
+            file_dir = os.path.join(embed_dir, file)
             with open(file_dir, 'rb') as f:
                 emb_dict = pickle.load(f)
             for k, emb in emb_dict.items():
@@ -53,7 +53,7 @@ def readDataset(name='trainset.txt', emb_dir=None):
     prices_df.fillna(0, inplace=True)
     volumes_df.fillna(0, inplace=True)
 
-    if emb_dir:
+    if embed_dir:
         return prices_df, volumes_df, embeds_data
     else:
         return prices_df, volumes_df
