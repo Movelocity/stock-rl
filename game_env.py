@@ -39,7 +39,8 @@ def readDataset(name='trainset.txt', embed_dir=None):
         volumes_data.append(df['volume'].rename(ticker))
         for index, _ in df.iterrows():
             date_index = str(index)[:10]
-            embeds_data.append(full_embeds[date_index])
+            daily_embed = full_embeds.get(date_index, np.random.randn(1024))
+            embeds_data.append(daily_embed)
 
     # 将所有DataFrame的索引统一，确保日期对齐，缺失的数据用前一个值填充
     # Concatenate all data into their respective DataFrames
