@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.nn.utils import clip_grad_norm_
-from qnetwork import QNetwork
+from qnetwork import QNetwork, QNetworkE
 
 
 class ReplayBuffer:
@@ -199,8 +199,8 @@ class AgentE():
         self.batch_size = config.get('batch_size', 64)
 
         # Q-Network
-        self.qnetwork_local = QNetwork(stock_cnt, self.seed).to(self.device)
-        self.qnetwork_target = QNetwork(stock_cnt, self.seed).to(self.device)
+        self.qnetwork_local = QNetworkE(stock_cnt, self.seed).to(self.device)
+        self.qnetwork_target = QNetworkE(stock_cnt, self.seed).to(self.device)
         self.optimizer = optim.Adam(self.qnetwork_local.parameters(), lr=LR)
 
         self.memory = ReplayBufferE(BUFFER_SIZE, self.batch_size, self.device, self.seed)
@@ -217,13 +217,14 @@ class AgentE():
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
-    def act(self, state, eps=0.):
+    def act(self, state, feature, eps=0.):
         """ eps (float) 越高，随机动作的概率越高
         """
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state = torch.FloatTensor(feature).unsqueeze(0).to(self.device)
         self.qnetwork_local.eval()
         with torch.no_grad():
-            qvalues = self.qnetwork_local(state)[0].cpu().numpy()
+            qvalues = self.qnetwork_local(state, feature)[0].cpu().numpy()
         # Epsilon-greedy action selection
         # if random.random() > eps:
         #     return np.argmax(qvalues.cpu().data.numpy())
