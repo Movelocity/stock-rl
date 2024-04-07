@@ -127,15 +127,16 @@ class EmulatorEnv:
 
         buy_strategy = np.where(qvalues>=buy_threshold, qvalues, 0)
         buy_strategy[zero_price_mask] = 0
-        buy_strategy /= np.sum(buy_strategy)
-        
-        buy_volumes = np.floor((self.available_cash*0.6 * buy_strategy) / stock_prices)  # 有的 stock_prices为 0，如何防止除以这些数值？
-        buy_volumes = np.minimum(buy_volumes, self.volumes_df.iloc[self.current_day].values)
-        self.available_cash -= buy_volumes.dot(stock_prices)  # 减去买股票花掉的钱，可能剩下些零钱
-        self.volumes += buy_volumes
+        if np.sum(buy_strategy) > 0:  # 总和大于零，这一天的买入才有意义
+            buy_strategy /= np.sum(buy_strategy)
 
-        current_market_value = stock_prices.dot(self.volumes)
-        self.asset = current_market_value + self.available_cash
+            buy_volumes = np.floor((self.available_cash*0.1 * buy_strategy) / stock_prices)  # 有的 stock_prices为 0，如何防止除以这些数值？
+            buy_volumes = np.minimum(buy_volumes, self.volumes_df.iloc[self.current_day].values)
+            self.available_cash -= buy_volumes.dot(stock_prices)  # 减去买股票花掉的钱，可能剩下些零钱
+            self.volumes += buy_volumes
+
+            current_market_value = stock_prices.dot(self.volumes)
+            self.asset = current_market_value + self.available_cash
         
         reward = np.sum(self.tomorrow_prices() * self.volumes) - current_market_value
 
