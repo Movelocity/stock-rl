@@ -122,7 +122,7 @@ class EmulatorEnv:
         self.available_cash += stock_prices.dot(sell_volumes)  # 卖掉了垃圾股票，拿钱
 
         # 将资产按比例分配到 qvalue>0 的股票上 or 只分配到前10上面
-        buy_threshold = sorted(qvalues)[-10]  # 集合至少要有10只股票，否则要报错了
+        buy_threshold = sorted(qvalues)[-20]  # 集合至少要有10只股票，否则要报错了
         buy_threshold = 0 if buy_threshold < 0 else buy_threshold
 
         buy_strategy = np.where(qvalues>=buy_threshold, qvalues, 0)
