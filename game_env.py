@@ -123,10 +123,13 @@ class EmulatorEnv:
 
         # 将资产按比例分配到 qvalue>0 的股票上 or 只分配到前10上面
         buy_threshold = sorted(qvalues)[-10]  # 集合至少要有10只股票，否则要报错了
+        buy_threshold = 0 if buy_threshold < 0 else buy_threshold
+
         buy_strategy = np.where(qvalues>=buy_threshold, qvalues, 0)
         buy_strategy[zero_price_mask] = 0
         buy_strategy /= np.sum(buy_strategy)
-        buy_volumes = np.floor((self.available_cash * buy_strategy) / stock_prices)  # 有的 stock_prices为 0，如何防止除以这些数值？
+        
+        buy_volumes = np.floor((self.available_cash*0.6 * buy_strategy) / stock_prices)  # 有的 stock_prices为 0，如何防止除以这些数值？
         buy_volumes = np.minimum(buy_volumes, self.volumes_df.iloc[self.current_day].values)
         self.available_cash -= buy_volumes.dot(stock_prices)  # 减去买股票花掉的钱，可能剩下些零钱
         self.volumes += buy_volumes
